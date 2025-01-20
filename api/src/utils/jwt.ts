@@ -1,29 +1,33 @@
 import jwt from 'jsonwebtoken';
-import { InvalidTokenException, ServiceUnavailableException, TokenExpiredException } from '../exceptions/index.js';
+import { InvalidTokenError, ServiceUnavailableError, TokenExpiredError } from '@directus/errors';
 import type { DirectusTokenPayload } from '../types/index.js';
 
-export function verifyAccessJWT(token: string, secret: string): DirectusTokenPayload {
+export function verifyJWT(token: string, secret: string) {
 	let payload;
 
 	try {
 		payload = jwt.verify(token, secret, {
 			issuer: 'directus',
-		}) as Record<string, any>;
+		}) as Record<string, unknown>;
 	} catch (err) {
 		if (err instanceof jwt.TokenExpiredError) {
-			throw new TokenExpiredException();
+			throw new TokenExpiredError();
 		} else if (err instanceof jwt.JsonWebTokenError) {
-			throw new InvalidTokenException('Token invalid.');
+			throw new InvalidTokenError();
 		} else {
-			throw new ServiceUnavailableException(`Couldn't verify token.`, { service: 'jwt' });
+			throw new ServiceUnavailableError({ service: 'jwt', reason: `Couldn't verify token.` });
 		}
 	}
 
-	const { id, role, app_access, admin_access, share, share_scope } = payload;
+	return payload;
+}
 
-	if (role === undefined || app_access === undefined || admin_access === undefined) {
-		throw new InvalidTokenException('Invalid token payload.');
+export function verifyAccessJWT(token: string, secret: string) {
+	const payload = verifyJWT(token, secret) as DirectusTokenPayload;
+
+	if (payload.role === undefined || payload.app_access === undefined || payload.admin_access === undefined) {
+		throw new InvalidTokenError();
 	}
 
-	return { id, role, app_access, admin_access, share, share_scope };
+	return payload;
 }

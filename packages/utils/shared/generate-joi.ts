@@ -1,9 +1,11 @@
-import BaseJoi, { AnySchema, StringSchema as BaseStringSchema, NumberSchema, DateSchema } from 'joi';
-import { escapeRegExp, merge } from 'lodash-es';
 import type { FieldFilter } from '@directus/types';
+import type { AnySchema, StringSchema as BaseStringSchema, DateSchema, NumberSchema } from 'joi';
+import BaseJoi from 'joi';
+import { escapeRegExp, merge } from 'lodash-es';
 
 export interface StringSchema extends BaseStringSchema {
 	contains(substring: string): this;
+	icontains(substring: string): this;
 	ncontains(substring: string): this;
 }
 
@@ -12,6 +14,7 @@ export const Joi: typeof BaseJoi = BaseJoi.extend({
 	base: BaseJoi.string(),
 	messages: {
 		'string.contains': '{{#label}} must contain [{{#substring}}]',
+		'string.icontains': '{{#label}} must contain case insensitive [{{#substring}}]',
 		'string.ncontains': "{{#label}} can't contain [{{#substring}}]",
 	},
 	rules: {
@@ -31,6 +34,27 @@ export const Joi: typeof BaseJoi = BaseJoi.extend({
 				if (value.includes(substring) === false) {
 					return helpers.error('string.contains', { substring });
 				}
+
+				return value;
+			},
+		},
+		icontains: {
+			args: [
+				{
+					name: 'substring',
+					ref: true,
+					assert: (val) => typeof val === 'string',
+					message: 'must be a string',
+				},
+			],
+			method(substring) {
+				return this.$_addRule({ name: 'icontains', args: { substring } });
+			},
+			validate(value: string, helpers, { substring }) {
+				if (value.toLowerCase().includes(substring.toLowerCase()) === false) {
+					return helpers.error('string.icontains', { substring });
+				}
+
 				return value;
 			},
 		},
@@ -108,6 +132,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 				compareValue === null || compareValue === '' || compareValue === true || compareValue === false
 					? NaN
 					: Number(compareValue);
+
 			if (isNaN(numericValue)) {
 				schema[key] = getAnySchema().equal(compareValue);
 			} else {
@@ -120,6 +145,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 				compareValue === null || compareValue === '' || compareValue === true || compareValue === false
 					? NaN
 					: Number(compareValue);
+
 			if (isNaN(numericValue)) {
 				schema[key] = getAnySchema().not(compareValue);
 			} else {
@@ -131,7 +157,10 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
 				schema[key] = Joi.any().equal(true);
 			} else {
-				schema[key] = getStringSchema().contains(compareValue);
+				schema[key] = Joi.alternatives().try(
+					getStringSchema().contains(compareValue),
+					Joi.array().items(getStringSchema().contains(compareValue).required(), Joi.any()),
+				);
 			}
 		}
 
@@ -139,7 +168,10 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
 				schema[key] = Joi.any().equal(true);
 			} else {
-				schema[key] = getStringSchema().contains(compareValue);
+				schema[key] = Joi.alternatives().try(
+					getStringSchema().icontains(compareValue),
+					Joi.array().items(getStringSchema().icontains(compareValue).required(), Joi.any()),
+				);
 			}
 		}
 
@@ -147,7 +179,10 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
 				schema[key] = Joi.any().equal(true);
 			} else {
-				schema[key] = getStringSchema().ncontains(compareValue);
+				schema[key] = Joi.alternatives().try(
+					getStringSchema().ncontains(compareValue),
+					Joi.array().items(getStringSchema().contains(compareValue).forbidden()),
+				);
 			}
 		}
 
@@ -166,7 +201,28 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 				schema[key] = Joi.any().equal(true);
 			} else {
 				schema[key] = getStringSchema().pattern(new RegExp(`^${escapeRegExp(compareValue)}.*`), {
-					name: 'starts_with',
+					name: 'nstarts_with',
+					invert: true,
+				});
+			}
+		}
+
+		if (operator === '_istarts_with') {
+			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
+				schema[key] = Joi.any().equal(true);
+			} else {
+				schema[key] = getStringSchema().pattern(new RegExp(`^${escapeRegExp(compareValue)}.*`, 'i'), {
+					name: 'istarts_with',
+				});
+			}
+		}
+
+		if (operator === '_nistarts_with') {
+			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
+				schema[key] = Joi.any().equal(true);
+			} else {
+				schema[key] = getStringSchema().pattern(new RegExp(`^${escapeRegExp(compareValue)}.*`, 'i'), {
+					name: 'nistarts_with',
 					invert: true,
 				});
 			}
@@ -187,7 +243,28 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 				schema[key] = Joi.any().equal(true);
 			} else {
 				schema[key] = getStringSchema().pattern(new RegExp(`.*${escapeRegExp(compareValue)}$`), {
-					name: 'ends_with',
+					name: 'nends_with',
+					invert: true,
+				});
+			}
+		}
+
+		if (operator === '_iends_with') {
+			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
+				schema[key] = Joi.any().equal(true);
+			} else {
+				schema[key] = getStringSchema().pattern(new RegExp(`.*${escapeRegExp(compareValue)}$`, 'i'), {
+					name: 'iends_with',
+				});
+			}
+		}
+
+		if (operator === '_niends_with') {
+			if (compareValue === null || compareValue === undefined || typeof compareValue !== 'string') {
+				schema[key] = Joi.any().equal(true);
+			} else {
+				schema[key] = getStringSchema().pattern(new RegExp(`.*${escapeRegExp(compareValue)}$`, 'i'), {
+					name: 'niends_with',
 					invert: true,
 				});
 			}
@@ -203,6 +280,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 
 		if (operator === '_gt') {
 			const isDate = compareValue instanceof Date || Number.isNaN(Number(compareValue));
+
 			schema[key] = isDate
 				? getDateSchema().greater(compareValue as string | Date)
 				: getNumberSchema().greater(Number(compareValue));
@@ -210,6 +288,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 
 		if (operator === '_gte') {
 			const isDate = compareValue instanceof Date || Number.isNaN(Number(compareValue));
+
 			schema[key] = isDate
 				? getDateSchema().min(compareValue as string | Date)
 				: getNumberSchema().min(Number(compareValue));
@@ -217,6 +296,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 
 		if (operator === '_lt') {
 			const isDate = compareValue instanceof Date || Number.isNaN(Number(compareValue));
+
 			schema[key] = isDate
 				? getDateSchema().less(compareValue as string | Date)
 				: getNumberSchema().less(Number(compareValue));
@@ -224,6 +304,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 
 		if (operator === '_lte') {
 			const isDate = compareValue instanceof Date || Number.isNaN(Number(compareValue));
+
 			schema[key] = isDate
 				? getDateSchema().max(compareValue as string | Date)
 				: getNumberSchema().max(Number(compareValue));
@@ -285,6 +366,7 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 			} else {
 				const wrapped =
 					typeof compareValue === 'string' ? compareValue.startsWith('/') && compareValue.endsWith('/') : false;
+
 				schema[key] = getStringSchema().regex(new RegExp(wrapped ? (compareValue as any).slice(1, -1) : compareValue));
 			}
 		}

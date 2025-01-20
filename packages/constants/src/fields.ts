@@ -30,6 +30,8 @@ export const TYPES = [
 	'unknown',
 ] as const;
 
+export const NUMERIC_TYPES = ['bigInteger', 'decimal', 'float', 'integer'] as const;
+
 export const GEOMETRY_TYPES = [
 	'Point',
 	'LineString',
@@ -43,6 +45,18 @@ export const GEOMETRY_FORMATS = ['native', 'geojson', 'wkt', 'lnglat'] as const;
 
 export const LOCAL_TYPES = [
 	'standard',
+	'file',
+	'files',
+	'm2o',
+	'o2m',
+	'm2m',
+	'm2a',
+	'presentation',
+	'translations',
+	'group',
+] as const;
+
+export const RELATIONAL_TYPES = [
 	'file',
 	'files',
 	'm2o',

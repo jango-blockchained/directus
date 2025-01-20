@@ -1,12 +1,48 @@
+<script setup lang="ts">
+import { sortBy } from 'lodash';
+import { computed } from 'vue';
+
+type Option = {
+	text: string;
+	value: string | number | boolean;
+};
+
+const props = withDefaults(
+	defineProps<{
+		value?: string[];
+		disabled?: boolean;
+		choices?: Option[];
+		icon?: string;
+
+		allowNone?: boolean;
+		placeholder?: string;
+		allowOther?: boolean;
+		previewThreshold?: number;
+	}>(),
+	{
+		previewThreshold: 3,
+	},
+);
+
+const emit = defineEmits(['input']);
+
+const items = computed(() => props.choices || []);
+
+function updateValue(value: string[]) {
+	const sortedValue = sortBy(value, (val) => {
+		const sortIndex = items.value!.findIndex((item) => val === item.value);
+		return sortIndex !== -1 ? sortIndex : value.length;
+	});
+
+	emit('input', sortedValue);
+}
+</script>
+
 <template>
-	<v-notice v-if="!choices" type="warning">
-		{{ t('choices_option_configured_incorrectly') }}
-	</v-notice>
 	<v-select
-		v-else
 		multiple
 		:model-value="value"
-		:items="choices"
+		:items="items"
 		:disabled="disabled"
 		:show-deselect="allowNone"
 		:placeholder="placeholder"
@@ -20,66 +56,3 @@
 		</template>
 	</v-select>
 </template>
-
-<script lang="ts">
-import { useI18n } from 'vue-i18n';
-import { defineComponent, PropType } from 'vue';
-import { sortBy } from 'lodash';
-
-type Option = {
-	text: string;
-	value: string | number | boolean;
-};
-
-export default defineComponent({
-	props: {
-		disabled: {
-			type: Boolean,
-			default: false,
-		},
-		value: {
-			type: Array as PropType<string[]>,
-			default: null,
-		},
-		choices: {
-			type: Array as PropType<Option[]>,
-			default: null,
-		},
-		icon: {
-			type: String,
-			default: null,
-		},
-		allowNone: {
-			type: Boolean,
-			default: false,
-		},
-		placeholder: {
-			type: String,
-			default: null,
-		},
-		allowOther: {
-			type: Boolean,
-			default: false,
-		},
-		previewThreshold: {
-			type: Number,
-			default: 3,
-		},
-	},
-	emits: ['input'],
-	setup(props, { emit }) {
-		const { t } = useI18n();
-
-		return { t, updateValue };
-
-		function updateValue(value: PropType<string[]>) {
-			const sortedValue = sortBy(value, (val) => {
-				const sortIndex = props.choices.findIndex((choice) => val === choice.value);
-				return sortIndex !== -1 ? sortIndex : value.length;
-			});
-
-			emit('input', sortedValue);
-		}
-	},
-});
-</script>

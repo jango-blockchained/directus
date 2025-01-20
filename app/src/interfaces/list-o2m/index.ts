@@ -1,4 +1,5 @@
-import { defineInterface } from '@directus/utils';
+import { DeepPartial, Field } from '@directus/types';
+import { defineInterface } from '@directus/extensions';
 import InterfaceListO2M from './list-o2m.vue';
 import PreviewSVG from './preview.svg?raw';
 
@@ -16,7 +17,7 @@ export default defineInterface({
 		const collection = relations.o2m?.collection;
 		const options = meta?.options ?? {};
 
-		const tableOptions = [
+		const tableOptions: DeepPartial<Field>[] = [
 			{
 				field: 'tableSpacing',
 				name: '$t:layouts.tabular.spacing',
@@ -57,7 +58,7 @@ export default defineInterface({
 			},
 		];
 
-		const listOptions = [
+		const listOptions: DeepPartial<Field>[] = [
 			{
 				field: 'template',
 				name: '$t:display_template',
@@ -155,6 +156,42 @@ export default defineInterface({
 							hidden: true,
 						},
 					],
+				},
+			},
+			{
+				field: 'sort',
+				name: '$t:sort',
+				type: 'string',
+				meta: {
+					interface: 'system-field',
+					options: {
+						collectionName: collection,
+					},
+					width: 'half',
+				},
+			},
+			{
+				field: 'sortDirection',
+				name: '$t:sort_direction',
+				schema: {
+					default_value: '+',
+				},
+				type: 'string',
+				meta: {
+					interface: 'select-dropdown',
+					options: {
+						choices: [
+							{
+								text: '$t:sort_asc',
+								value: '+',
+							},
+							{
+								text: '$t:sort_desc',
+								value: '-',
+							},
+						],
+					},
+					width: 'half',
 				},
 			},
 			{

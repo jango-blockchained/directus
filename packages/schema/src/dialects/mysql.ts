@@ -33,10 +33,12 @@ type RawColumn = {
 	EXTRA: 'auto_increment' | 'STORED GENERATED' | 'VIRTUAL GENERATED' | null;
 	CONSTRAINT_NAME: 'PRIMARY' | null;
 	GENERATION_EXPRESSION: string;
+	INDEX_NAME: string | null;
 };
 
 export function rawColumnToColumn(rawColumn: RawColumn): Column {
 	let dataType = rawColumn.COLUMN_TYPE.replace(/\(.*?\)/, '');
+
 	if (rawColumn.COLUMN_TYPE.startsWith('tinyint(1)')) {
 		dataType = 'boolean';
 	}
@@ -53,6 +55,7 @@ export function rawColumnToColumn(rawColumn: RawColumn): Column {
 		is_generated: !!rawColumn.EXTRA?.endsWith('GENERATED'),
 		is_nullable: rawColumn.IS_NULLABLE === 'YES',
 		is_unique: rawColumn.COLUMN_KEY === 'UNI',
+		is_indexed: !!rawColumn.INDEX_NAME && rawColumn.INDEX_NAME.length > 0,
 		is_primary_key: rawColumn.CONSTRAINT_NAME === 'PRIMARY' || rawColumn.COLUMN_KEY === 'PRI',
 		has_auto_increment: rawColumn.EXTRA === 'auto_increment',
 		foreign_key_column: rawColumn.REFERENCED_COLUMN_NAME,
@@ -98,7 +101,7 @@ export default class MySQL implements SchemaInspector {
 				T.TABLE_TYPE = 'BASE TABLE' AND
 				C.TABLE_SCHEMA = ?;
 			`,
-			[this.knex.client.database()]
+			[this.knex.client.database()],
 		);
 
 		const overview: SchemaOverview = {};
@@ -116,6 +119,7 @@ export default class MySQL implements SchemaInspector {
 			}
 
 			let dataType = column.data_type.replace(/\(.*?\)/, '');
+
 			if (column.data_type.startsWith('tinyint(1)')) {
 				dataType = 'boolean';
 			}
@@ -146,6 +150,7 @@ export default class MySQL implements SchemaInspector {
 				TABLE_TYPE: 'BASE TABLE',
 				TABLE_SCHEMA: this.knex.client.database(),
 			});
+
 		return records.map(({ TABLE_NAME }) => TABLE_NAME);
 	}
 
@@ -201,6 +206,7 @@ export default class MySQL implements SchemaInspector {
 				table_name: table,
 			})
 			.first();
+
 		return (result && result.count === 1) || false;
 	}
 
@@ -255,7 +261,8 @@ export default class MySQL implements SchemaInspector {
 				'fk.CONSTRAINT_NAME',
 				'rc.UPDATE_RULE',
 				'rc.DELETE_RULE',
-				'rc.MATCH_OPTION'
+				'rc.MATCH_OPTION',
+				'stats.INDEX_NAME',
 			)
 			.from('INFORMATION_SCHEMA.COLUMNS as c')
 			.leftJoin('INFORMATION_SCHEMA.KEY_COLUMN_USAGE as fk', function () {
@@ -267,6 +274,12 @@ export default class MySQL implements SchemaInspector {
 				this.on('rc.TABLE_NAME', '=', 'fk.TABLE_NAME')
 					.andOn('rc.CONSTRAINT_NAME', '=', 'fk.CONSTRAINT_NAME')
 					.andOn('rc.CONSTRAINT_SCHEMA', '=', 'fk.CONSTRAINT_SCHEMA');
+			})
+			.leftJoin('INFORMATION_SCHEMA.STATISTICS as stats', function () {
+				this.on('stats.TABLE_NAME', '=', 'c.TABLE_NAME')
+					.andOn('stats.COLUMN_NAME', '=', 'c.COLUMN_NAME')
+					.andOnVal('stats.NON_UNIQUE', 1)
+					.andOnVal('stats.SEQ_IN_INDEX', 1);
 			})
 			.where({
 				'c.TABLE_SCHEMA': this.knex.client.database(),
@@ -291,6 +304,7 @@ export default class MySQL implements SchemaInspector {
 				const first = records.findIndex((_column) => {
 					return column.name === _column.name && column.table === _column.table;
 				});
+
 				return first === index;
 			});
 	}
@@ -308,6 +322,7 @@ export default class MySQL implements SchemaInspector {
 				column_name: column,
 			})
 			.first();
+
 		return !!(result && result.count);
 	}
 
@@ -346,7 +361,7 @@ export default class MySQL implements SchemaInspector {
 		 WHERE
 			rc.CONSTRAINT_SCHEMA = ?;
 	  `,
-			[this.knex.client.database()]
+			[this.knex.client.database()],
 		);
 
 		// Mapping casts "RowDataPacket" object from mysql to plain JS object

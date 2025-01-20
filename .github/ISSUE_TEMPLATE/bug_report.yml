@@ -1,4 +1,4 @@
-name: Bug Report
+name: Report a bug
 description: Create a report to help us improve
 body:
   - type: markdown
@@ -25,6 +25,12 @@ body:
         the bug.
     validations:
       required: true
+  - type: input
+    attributes:
+      label: Directus Version
+      placeholder: v11.x.x
+    validations:
+      required: true
   - type: dropdown
     id: deployment
     attributes:
@@ -35,3 +41,7 @@ body:
         - Directus Cloud
     validations:
       required: true
+  - type: input
+    attributes:
+      label: Database
+      description: If applicable, the vendor and version of the database being used. For example, PostgreSQL 16.

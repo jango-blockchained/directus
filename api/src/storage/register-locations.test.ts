@@ -1,23 +1,25 @@
-import { toArray } from '@directus/utils';
 import type { StorageManager } from '@directus/storage';
 import { randNumber, randWord } from '@ngneat/falso';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { getEnv } from '../env.js';
+import { useEnv } from '@directus/env';
 import { getConfigFromEnv } from '../utils/get-config-from-env.js';
 import { registerLocations } from './register-locations.js';
 
-vi.mock('../env.js');
-vi.mock('@directus/utils');
+vi.mock('@directus/env');
+
 vi.mock('../utils/get-config-from-env.js');
+
+vi.mock('../constants.js', () => ({ RESUMABLE_UPLOADS: { CHUNK_SIZE: 9999 } }));
 
 let sample: {
 	options: {
 		[location: string]: {
-			[key: string]: string;
+			[key: string]: any;
 		};
 	};
 	locations: string[];
 };
+
 let mockStorage: StorageManager;
 
 beforeEach(() => {
@@ -32,6 +34,7 @@ beforeEach(() => {
 
 		sample.options[`STORAGE_${location.toUpperCase()}_`] = {
 			driver: randWord(),
+			tus: { chunkSize: 9999 },
 		};
 
 		keys.forEach((key, index) => (sample.options[`STORAGE_${location.toUpperCase()}_`]![key] = values[index]!));
@@ -42,27 +45,23 @@ beforeEach(() => {
 	} as unknown as StorageManager;
 
 	vi.mocked(getConfigFromEnv).mockImplementation((name) => sample.options[name]!);
-	vi.mocked(getEnv).mockReturnValue({
-		STORAGE_LOCATIONS: sample.locations.join(', '),
+
+	vi.mocked(useEnv).mockReturnValue({
+		STORAGE_LOCATIONS: sample.locations.join(','),
 	});
-	vi.mocked(toArray).mockReturnValue(sample.locations);
 });
 
 afterEach(() => {
 	vi.resetAllMocks();
 });
 
-test('Converts storage locations env var to array', async () => {
-	await registerLocations(mockStorage);
-	expect(toArray).toHaveBeenCalledWith(sample.locations.join(', '));
-});
-
 test('Gets config for each location', async () => {
 	await registerLocations(mockStorage);
 
 	expect(getConfigFromEnv).toHaveBeenCalledTimes(sample.locations.length);
+
 	sample.locations.forEach((location) =>
-		expect(getConfigFromEnv).toHaveBeenCalledWith(`STORAGE_${location.toUpperCase()}_`)
+		expect(getConfigFromEnv).toHaveBeenCalledWith(`STORAGE_${location.toUpperCase()}_`),
 	);
 });
 
@@ -70,6 +69,7 @@ test('Registers location with driver options for each location', async () => {
 	await registerLocations(mockStorage);
 
 	expect(mockStorage.registerLocation).toHaveBeenCalledTimes(sample.locations.length);
+
 	sample.locations.forEach((location) => {
 		const { driver, ...options } = sample.options[`STORAGE_${location.toUpperCase()}_`]!;
 

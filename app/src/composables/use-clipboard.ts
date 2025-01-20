@@ -1,6 +1,6 @@
+import { notify } from '@/utils/notify';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { notify } from '@/utils/notify';
 
 type Message = {
 	success?: string;
@@ -23,16 +23,19 @@ export function useClipboard() {
 	async function copyToClipboard(value: any, message?: Message): Promise<boolean> {
 		try {
 			const valueString = typeof value === 'string' ? value : JSON.stringify(value);
-			await navigator?.clipboard?.writeText(valueString);
+			await navigator.clipboard.writeText(valueString);
+
 			notify({
 				title: message?.success ?? t('copy_raw_value_success'),
 			});
+
 			return true;
-		} catch (err: any) {
+		} catch {
 			notify({
 				type: 'error',
 				title: message?.fail ?? t('copy_raw_value_fail'),
 			});
+
 			return false;
 		}
 	}
@@ -40,15 +43,18 @@ export function useClipboard() {
 	async function pasteFromClipboard(message?: Message): Promise<string | null> {
 		try {
 			const pasteValue = await navigator?.clipboard?.readText();
+
 			notify({
 				title: message?.success ?? t('paste_raw_value_success'),
 			});
+
 			return pasteValue;
-		} catch (err: any) {
+		} catch {
 			notify({
 				type: 'error',
 				title: message?.fail ?? t('paste_raw_value_fail'),
 			});
+
 			return null;
 		}
 	}

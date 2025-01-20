@@ -3,6 +3,7 @@
 	"application/x-abiword": "abw",
 	"application/x-freearc": "arc",
 	"video/x-msvideo": "avi",
+	"image/avif": "avif",
 	"application/vnd.amazon.ebook": "azw",
 	"application/octet-stream": "file",
 	"image/bmp": "bmp",
@@ -73,5 +74,7 @@
 	"video/3gpp2": "3g2",
 	"audio/3gpp": "3gp",
 	"audio/3gpp2": "3g2",
-	"application/x-7z-compressed": "7z"
+	"application/x-7z-compressed": "7z",
+	"image/heic": "heic",
+	"image/heif": "heif"
 }

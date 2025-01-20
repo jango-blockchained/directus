@@ -1,16 +1,17 @@
 import { refresh } from '@/auth';
 import { hydrate } from '@/hydrate';
-import TFASetup from '@/routes/tfa-setup.vue';
 import AcceptInviteRoute from '@/routes/accept-invite.vue';
 import LoginRoute from '@/routes/login/login.vue';
 import LogoutRoute from '@/routes/logout.vue';
-import ShareRoute from '@/routes/shared/shared.vue';
 import PrivateNotFoundRoute from '@/routes/private-not-found.vue';
+import RegisterRoute from '@/routes/register/register.vue';
 import ResetPasswordRoute from '@/routes/reset-password/reset-password.vue';
-import { useAppStore } from '@/stores/app';
+import ShareRoute from '@/routes/shared/shared.vue';
+import TFASetup from '@/routes/tfa-setup.vue';
 import { useServerStore } from '@/stores/server';
 import { useUserStore } from '@/stores/user';
 import { getRootPath } from '@/utils/get-root-path';
+import { useAppStore } from '@directus/stores';
 import { createRouter, createWebHistory, NavigationGuard, NavigationHookAfter, RouteRecordRaw } from 'vue-router';
 
 export const defaultRoutes: RouteRecordRaw[] = [
@@ -34,6 +35,14 @@ export const defaultRoutes: RouteRecordRaw[] = [
 		name: 'reset-password',
 		path: '/reset-password',
 		component: ResetPasswordRoute,
+		meta: {
+			public: true,
+		},
+	},
+	{
+		name: 'register',
+		path: '/register',
+		component: RegisterRoute,
 		meta: {
 			public: true,
 		},
@@ -92,6 +101,7 @@ export const onBeforeEach: NavigationGuard = async (to) => {
 	// First load
 	if (firstLoad) {
 		firstLoad = false;
+
 		// Try retrieving a fresh access token on first load
 		try {
 			await refresh({ navigate: false });
@@ -111,8 +121,10 @@ export const onBeforeEach: NavigationGuard = async (to) => {
 	if (to.meta?.public !== true) {
 		if (appStore.hydrated === false) {
 			appStore.hydrating = false;
+
 			if (appStore.authenticated === true) {
 				await hydrate();
+
 				if (
 					userStore.currentUser &&
 					to.fullPath === '/tfa-setup' &&
@@ -121,6 +133,7 @@ export const onBeforeEach: NavigationGuard = async (to) => {
 				) {
 					return userStore.currentUser.last_page || '/login';
 				}
+
 				return to.fullPath;
 			} else {
 				if (to.fullPath) {
@@ -131,9 +144,9 @@ export const onBeforeEach: NavigationGuard = async (to) => {
 			}
 		}
 
-		if (userStore.currentUser && !('share' in userStore.currentUser) && userStore.currentUser.role) {
+		if (userStore.currentUser && !('share' in userStore.currentUser)) {
 			if (to.path !== '/tfa-setup') {
-				if (userStore.currentUser.role.enforce_tfa && userStore.currentUser.tfa_secret === null) {
+				if (userStore.currentUser.enforce_tfa && userStore.currentUser.tfa_secret === null) {
 					if (userStore.currentUser.last_page === to.fullPath) {
 						return '/tfa-setup';
 					} else {
@@ -145,6 +158,8 @@ export const onBeforeEach: NavigationGuard = async (to) => {
 			}
 		}
 	}
+
+	return;
 };
 
 let trackTimeout: number | null = null;
@@ -162,7 +177,7 @@ export const onAfterEach: NavigationHookAfter = (to) => {
 		}
 
 		trackTimeout = window.setTimeout(() => {
-			userStore.trackPage(to.fullPath);
+			userStore.trackPage(to);
 		}, 500);
 	}
 };

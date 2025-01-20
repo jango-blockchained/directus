@@ -10,7 +10,7 @@ export type Trigger = {
 	description: string;
 	overview: (
 		options: Record<string, any>,
-		{ flow }: { flow: FlowRaw }
+		{ flow }: { flow: FlowRaw },
 	) => { text: string; label: string; copyable?: boolean }[];
 	options: DeepPartial<Field>[] | ((options: Record<string, any>) => DeepPartial<Field>[]);
 };
@@ -79,6 +79,8 @@ export function getTriggers() {
 									'items.create',
 									'items.update',
 									'items.delete',
+									'items.promote',
+									'items.sort',
 									{ divider: true },
 									'server.start',
 									'server.stop',
@@ -99,9 +101,12 @@ export function getTriggers() {
 							interface: 'system-collections',
 							width: 'full' as Width,
 							readonly:
-								!scope || ['items.create', 'items.update', 'items.delete'].every((t) => scope?.includes(t) === false),
+								!scope ||
+								['items.create', 'items.update', 'items.delete', 'items.promote'].every(
+									(t) => scope?.includes(t) === false,
+								),
 							options: {
-								includeSystem: true,
+								includeSystem: !scope || scope?.filter((t: string) => t !== 'items.promote').length > 0,
 							},
 						},
 					},
@@ -119,13 +124,17 @@ export function getTriggers() {
 									'items.create',
 									'items.update',
 									'items.delete',
+									'items.promote',
 									{ divider: true },
 									'request.not_found',
 									'request.error',
 									'database.error',
 									'auth.login',
 									'auth.jwt',
+									'auth.create',
+									'auth.update',
 									'authenticate',
+									'email.send',
 								],
 								font: 'monospace',
 							},
@@ -139,9 +148,12 @@ export function getTriggers() {
 							interface: 'system-collections',
 							width: 'full' as Width,
 							readonly:
-								!scope || ['items.create', 'items.update', 'items.delete'].every((t) => scope?.includes(t) === false),
+								!scope ||
+								['items.create', 'items.update', 'items.delete', 'items.promote'].every(
+									(t) => scope?.includes(t) === false,
+								),
 							options: {
-								includeSystem: true,
+								includeSystem: !scope || scope?.filter((t: string) => t !== 'items.promote').length > 0,
 							},
 						},
 					},
@@ -196,7 +208,7 @@ export function getTriggers() {
 					copyable: true,
 				},
 			],
-			options: ({ async }) => [
+			options: ({ async, method }) => [
 				{
 					field: 'method',
 					name: t('triggers.webhook.method'),
@@ -252,6 +264,19 @@ export function getTriggers() {
 							allowOther: true,
 						},
 						hidden: async,
+					},
+				},
+				{
+					field: 'cacheEnabled',
+					name: '$t:operations.trigger.cache',
+					type: 'boolean',
+					meta: {
+						width: 'half',
+						hidden: method && method !== 'GET',
+						interface: 'toggle',
+					},
+					schema: {
+						default_value: true,
 					},
 				},
 			],
